@@ -173,3 +173,4 @@ If your app instead uses AR as a secondary feature, use the [`ARWorldTrackingCon
 
 [1]:https://developer.apple.com/library/content/documentation/General/Reference/InfoPlistKeyReference/Articles/iPhoneOSKeys.html#//apple_ref/doc/uid/TP40009252-SW3
 [2]:https://developer.apple.com/documentation/arkit/arconfiguration/2923553-issupported
+# gARffiti
