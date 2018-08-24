@@ -14,7 +14,9 @@ import ARKit
  the experience altogether.
  - Tag: StatusViewController
 */
-class StatusViewController: UIViewController {
+class StatusViewController: UIViewController,
+    UINavigationControllerDelegate,
+    UIImagePickerControllerDelegate {
     // MARK: - Types
 
     enum MessageType {
@@ -31,18 +33,18 @@ class StatusViewController: UIViewController {
         ]
     }
 
-    // MARK: - IBOutlets
-
+    @IBOutlet weak private var UploadedImageView: UIImageView!
+    
     @IBOutlet weak private var messagePanel: UIVisualEffectView!
     
     @IBOutlet weak private var messageLabel: UILabel!
     
     @IBOutlet weak private var restartExperienceButton: UIButton!
-
-    // MARK: - Properties
     
     /// Trigerred when the "Restart Experience" button is tapped.
     var restartExperienceHandler: () -> Void = {}
+    
+    var imageUploadedHandler: (UIImage) -> Void = {image in}
     
     /// Seconds before the timer message should fade out. Adjust if the app needs longer transient messages.
     private let displayDuration: TimeInterval = 6
@@ -52,7 +54,28 @@ class StatusViewController: UIViewController {
     
     private var timers: [MessageType: Timer] = [:]
     
-    // MARK: - Message Handling
+    @IBAction func ImportImage(_ sender: Any) {
+        let image = UIImagePickerController();
+        image.delegate = self;
+        image.sourceType = UIImagePickerControllerSourceType.photoLibrary;
+        image.allowsEditing = false;
+        
+        self.present(image, animated: true) {
+            // Completion callback
+        }
+    }
+    
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]) {
+        if let image = info[UIImagePickerControllerOriginalImage] as? UIImage {
+            UploadedImageView.image = image;
+            self.imageUploadedHandler(image);
+        }
+        else {
+            // Upload is not an image
+        }
+        
+        self.dismiss(animated: true, completion: nil);
+    }
     
     func showMessage(_ text: String, autoHide: Bool = true) {
         // Cancel any previous hide timer.

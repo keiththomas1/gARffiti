@@ -25,6 +25,8 @@ class ViewController: UIViewController {
     
     var focusSquare = FocusSquare()
     
+    var uploadedImageNode = SCNNode();
+    
     /// The view controller that displays the status and "restart experience" UI.
     lazy var statusViewController: StatusViewController = {
         return childViewControllers.lazy.compactMap({ $0 as? StatusViewController }).first!
@@ -73,13 +75,34 @@ class ViewController: UIViewController {
 
         // Hook up status view controller callback(s).
         statusViewController.restartExperienceHandler = { [unowned self] in
-            self.restartExperience()
+            self.restartExperience();
+        }
+        
+        statusViewController.imageUploadedHandler = {
+            [unowned self] (image:UIImage) -> Void in
+            self.addImageCursor(image:image);
         }
         
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(showVirtualObjectSelectionViewController))
         // Set the delegate to ensure this gesture is only used when there are no virtual objects in the scene.
         tapGesture.delegate = self
         sceneView.addGestureRecognizer(tapGesture)
+    }
+    
+    func addImageCursor(image:UIImage) {
+        let plane = SCNPlane(width: 0.1, height: 0.1);
+        
+        let material = SCNMaterial();
+        material.diffuse.contents = image;
+        material.isDoubleSided = true;
+        plane.materials = [material];
+        
+        self.uploadedImageNode = SCNNode(geometry:plane);
+        self.uploadedImageNode.eulerAngles.x = 3 * .pi / 2
+        // planeNode.eulerAngles = SCNVector3(0.0, 0.0, 90.0);
+        //planeNode.rotate(by: <#T##SCNQuaternion#>, aroundTarget: <#T##SCNVector3#>)
+        // planeNode.rotation = self.focusSquare.rotation;
+        self.focusSquare.addChildNode(self.uploadedImageNode);
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -143,7 +166,8 @@ class ViewController: UIViewController {
         
         // Perform hit testing only when ARKit tracking is in a good state.
         if let camera = session.currentFrame?.camera, case .normal = camera.trackingState,
-            let result = self.sceneView.smartHitTest(screenCenter) {
+            let result = self.sceneView.smartHitTest(screenCenter)
+        {
             updateQueue.async {
                 self.sceneView.scene.rootNode.addChildNode(self.focusSquare)
                 self.focusSquare.state = .detecting(hitTestResult: result, camera: camera)
