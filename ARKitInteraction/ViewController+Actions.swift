@@ -21,6 +21,26 @@ extension ViewController: UIGestureRecognizerDelegate {
         // Ensure adding objects is an available action and we are not loading another object (to avoid concurrent modifications of the scene).
         guard !addObjectButton.isHidden && !virtualObjectLoader.isLoading else { return }
         
+        if (self.imageInFocus) {
+            //self.sceneView.scene.rootNode.addChildNode(self.uploadedImageNode);
+            guard let currentUploadedImage = self.uploadedImageNodes.last else {
+                return;
+            }
+            let worldPosition = currentUploadedImage.simdWorldPosition;
+            let worldTransform = currentUploadedImage.simdWorldTransform;
+            currentUploadedImage.removeFromParentNode();
+            self.sceneView.scene.rootNode.addChildNode(currentUploadedImage);
+            //self.uploadedImageNode.localTranslate(by: worldPosition)
+            currentUploadedImage.simdWorldPosition = worldPosition;
+            currentUploadedImage.simdWorldTransform = worldTransform;
+            //self.uploadedImageNode.removeFromParentNode();
+            
+            // Create a new anchor with the object's current transform and add it to the session
+            self.sceneView.addAnchor(for: currentUploadedImage);
+            
+            self.imageInFocus = false;
+        }
+        
         statusViewController.cancelScheduledMessage(for: .contentPlacement)
         performSegue(withIdentifier: SegueIdentifier.showObjects.rawValue, sender: addObjectButton)
     }

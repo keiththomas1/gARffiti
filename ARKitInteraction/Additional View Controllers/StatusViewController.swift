@@ -33,7 +33,6 @@ class StatusViewController: UIViewController,
         ]
     }
 
-    @IBOutlet weak private var UploadedImageView: UIImageView!
     
     @IBOutlet weak private var messagePanel: UIVisualEffectView!
     
@@ -67,7 +66,6 @@ class StatusViewController: UIViewController,
     
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [String : Any]) {
         if let image = info[UIImagePickerControllerOriginalImage] as? UIImage {
-            UploadedImageView.image = image;
             self.imageUploadedHandler(image);
         }
         else {

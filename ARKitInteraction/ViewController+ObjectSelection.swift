@@ -35,7 +35,9 @@ extension ViewController: VirtualObjectSelectionViewControllerDelegate {
     
     // MARK: - VirtualObjectSelectionViewControllerDelegate
     
-    func virtualObjectSelectionViewController(_: VirtualObjectSelectionViewController, didSelectObject object: VirtualObject) {
+    func virtualObjectSelectionViewController(
+        _: VirtualObjectSelectionViewController,
+        didSelectObject object: VirtualObject) {
         virtualObjectLoader.loadVirtualObject(object, loadedHandler: { [unowned self] loadedObject in
             self.sceneView.prepare([object], completionHandler: { _ in
                 DispatchQueue.main.async {

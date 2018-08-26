@@ -99,6 +99,11 @@ class VirtualObjectARView: ARSCNView {
         object.anchor = newAnchor
         session.add(anchor: newAnchor)
     }
+    func addAnchor(for node: SCNNode) {
+        // Create a new anchor with the object's current transform and add it to the session
+        let newAnchor = ARAnchor(transform: node.simdWorldTransform)
+        session.add(anchor: newAnchor)
+    }
     
     // - MARK: Lighting
     

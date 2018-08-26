@@ -51,6 +51,8 @@ class VirtualObjectSelectionViewController: UITableViewController {
         super.viewDidLoad()
 
         tableView.separatorEffect = UIVibrancyEffect(blurEffect: UIBlurEffect(style: .light))
+        
+        
     }
     
     override func viewWillLayoutSubviews() {

@@ -20,12 +20,12 @@ class ViewController: UIViewController {
     @IBOutlet weak var blurView: UIVisualEffectView!
     
     @IBOutlet weak var spinner: UIActivityIndicatorView!
-
     // MARK: - UI Elements
     
     var focusSquare = FocusSquare()
     
-    var uploadedImageNode = SCNNode();
+    var uploadedImageNodes = [SCNNode]();
+    var imageInFocus:Bool = false;
     
     /// The view controller that displays the status and "restart experience" UI.
     lazy var statusViewController: StatusViewController = {
@@ -56,7 +56,26 @@ class ViewController: UIViewController {
     
     /// Convenience accessor for the session owned by ARSCNView.
     var session: ARSession {
+        
         return sceneView.session
+    }
+    
+    
+    func session(_ session: ARSession, didUpdate frame: ARFrame) {
+        // Enable Save button only when the mapping status is good and an object has been placed
+        /*switch frame.worldMappingStatus {
+            case .extending, .mapped:
+                saveExperienceButton.isEnabled =
+                    virtualObjectAnchor != nil && frame.anchors.contains(virtualObjectAnchor!)
+            default:
+                saveExperienceButton.isEnabled = false
+        }
+        statusLabel.text = """
+        Mapping: \(frame.worldMappingStatus.description)
+        Tracking: \(frame.camera.trackingState.description)
+        """
+        updateSessionInfoLabel(for: frame, trackingState: frame.camera.trackingState)
+        */
     }
     
     // MARK: - View Controller Life Cycle
@@ -70,6 +89,11 @@ class ViewController: UIViewController {
         // Set up scene content.
         setupCamera()
         sceneView.scene.rootNode.addChildNode(focusSquare)
+        
+        sceneView.showsStatistics = true;
+        sceneView.debugOptions = [
+            ARSCNDebugOptions.showWorldOrigin,
+            ARSCNDebugOptions.showFeaturePoints];
         
         sceneView.setupDirectionalLighting(queue: updateQueue)
 
@@ -97,12 +121,13 @@ class ViewController: UIViewController {
         material.isDoubleSided = true;
         plane.materials = [material];
         
-        self.uploadedImageNode = SCNNode(geometry:plane);
-        self.uploadedImageNode.eulerAngles.x = 3 * .pi / 2
-        // planeNode.eulerAngles = SCNVector3(0.0, 0.0, 90.0);
-        //planeNode.rotate(by: <#T##SCNQuaternion#>, aroundTarget: <#T##SCNVector3#>)
-        // planeNode.rotation = self.focusSquare.rotation;
-        self.focusSquare.addChildNode(self.uploadedImageNode);
+        let uploadedImageNode = SCNNode(geometry:plane);
+        uploadedImageNode.eulerAngles.x = 3 * .pi / 2
+        self.focusSquare.addChildNode(uploadedImageNode);
+        self.imageInFocus = true;
+        
+        self.uploadedImageNodes.append(uploadedImageNode);
+        //self.sceneView.scene.rootNode.addChildNode(self.uploadedImageNode);
     }
 
     override func viewDidAppear(_ animated: Bool) {
