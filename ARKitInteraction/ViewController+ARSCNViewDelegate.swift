@@ -37,18 +37,31 @@ extension ViewController: ARSCNViewDelegate, ARSessionDelegate {
     }
     
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
-        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
-        DispatchQueue.main.async {
-            self.statusViewController.cancelScheduledMessage(for: .planeEstimation)
-            self.statusViewController.showMessage("SURFACE DETECTED")
-            if self.virtualObjectLoader.loadedObjects.isEmpty {
-                self.statusViewController.scheduleMessage("TAP + TO PLACE AN OBJECT", inSeconds: 7.5, messageType: .contentPlacement)
+        // TODO: Need to guard this in case the conversion fails I think? Apple
+        //      was guarding it but I had to re-factor
+        if let planeAnchor = anchor as? ARPlaneAnchor {
+            DispatchQueue.main.async {
+                self.statusViewController.cancelScheduledMessage(for: .planeEstimation)
+                self.statusViewController.showMessage("SURFACE DETECTED")
+                if self.virtualObjectLoader.loadedObjects.isEmpty {
+                    self.statusViewController.scheduleMessage("TAP + TO PLACE AN OBJECT", inSeconds: 7.5, messageType: .contentPlacement)
+                }
             }
-        }
-        updateQueue.async {
-            for object in self.virtualObjectLoader.loadedObjects {
-                object.adjustOntoPlaneAnchor(planeAnchor, using: node)
+            updateQueue.async {
+                for object in self.virtualObjectLoader.loadedObjects {
+                    object.adjustOntoPlaneAnchor(planeAnchor, using: node)
+                }
             }
+            
+        } else if let imageAnchor = anchor as? GraffitiImageAnchor {
+            // TODO: Load image based on image hash
+            
+            let image = self.LoadSavedImage(imageName: "TestImage");
+            self.addUploadedImage(image: image);
+            guard let newImageNode = self.uploadedImageNodes.last else { return; }
+            
+            node.addChildNode(newImageNode);
+            newImageNode.simdWorldOrientation = simd_quatf();
         }
     }
     

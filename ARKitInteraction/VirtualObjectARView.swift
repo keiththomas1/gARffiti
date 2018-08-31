@@ -99,14 +99,12 @@ class VirtualObjectARView: ARSCNView {
         object.anchor = newAnchor
         session.add(anchor: newAnchor)
     }
-    func addAnchor(for node: SCNNode) {
+    func addImageAnchor(anchor: GraffitiImageAnchor) {
         // Create a new anchor with the object's current transform and add it to the session
-        let newAnchor = ARAnchor(transform: node.simdWorldTransform)
-        session.add(anchor: newAnchor)
+        session.add(anchor: anchor)
     }
-    
+
     // - MARK: Lighting
-    
     var lightingRootNode: SCNNode? {
         return scene.rootNode.childNode(withName: "lightingRootNode", recursively: true)
     }

@@ -17,32 +17,41 @@ extension ViewController: UIGestureRecognizerDelegate {
     // MARK: - Interface Actions
     
     /// Displays the `VirtualObjectSelectionViewController` from the `addObjectButton` or in response to a tap gesture in the `sceneView`.
-    @IBAction func showVirtualObjectSelectionViewController() {
-        // Ensure adding objects is an available action and we are not loading another object (to avoid concurrent modifications of the scene).
-        guard !addObjectButton.isHidden && !virtualObjectLoader.isLoading else { return }
-        
+    @IBAction func handleScreenTapped() {
         if (self.imageInFocus) {
-            //self.sceneView.scene.rootNode.addChildNode(self.uploadedImageNode);
+            
+            // TODO: Ensure that the cursor is on a surface, or else it will
+            //      be possible to place something anywhere in the world.
+            
             guard let currentUploadedImage = self.uploadedImageNodes.last else {
                 return;
             }
-            let worldPosition = currentUploadedImage.simdWorldPosition;
-            let worldTransform = currentUploadedImage.simdWorldTransform;
-            currentUploadedImage.removeFromParentNode();
-            self.sceneView.scene.rootNode.addChildNode(currentUploadedImage);
-            //self.uploadedImageNode.localTranslate(by: worldPosition)
-            currentUploadedImage.simdWorldPosition = worldPosition;
-            currentUploadedImage.simdWorldTransform = worldTransform;
-            //self.uploadedImageNode.removeFromParentNode();
+            self.lastWorldTransform = currentUploadedImage.simdWorldTransform;
             
+            let imageHash = self.getRandomHash(hashLength: 15);
+            
+            do {
+                if (!self.imageDictionaryLoaded) {
+                    self.LoadImageDictionary();
+                }
+                self.imageDictionary.images[imageHash] = self.uploadedImage;
+                let imageData = try NSKeyedArchiver.archivedData(withRootObject: self.imageDictionary, requiringSecureCoding: true);
+                try imageData.write(to: self.imageSaveURL, options: [.atomic]);
+            }
+            catch {
+                fatalError("Can't save image: \(error.localizedDescription)");
+            }
             // Create a new anchor with the object's current transform and add it to the session
-            self.sceneView.addAnchor(for: currentUploadedImage);
+            let newAnchor = GraffitiImageAnchor(transform: currentUploadedImage.simdWorldTransform, imageHash: imageHash);
+            self.sceneView.addImageAnchor(anchor: newAnchor);
             
+            currentUploadedImage.removeFromParentNode();
             self.imageInFocus = false;
         }
-        
-        statusViewController.cancelScheduledMessage(for: .contentPlacement)
-        performSegue(withIdentifier: SegueIdentifier.showObjects.rawValue, sender: addObjectButton)
+        /*else {
+            statusViewController.cancelScheduledMessage(for: .contentPlacement)
+            performSegue(withIdentifier: SegueIdentifier.showObjects.rawValue, sender: addObjectButton)
+        }*/
     }
     
     /// Determines if the tap gesture for presenting the `VirtualObjectSelectionViewController` should be used.

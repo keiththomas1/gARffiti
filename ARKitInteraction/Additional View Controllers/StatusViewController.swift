@@ -53,7 +53,7 @@ class StatusViewController: UIViewController,
     
     private var timers: [MessageType: Timer] = [:]
     
-    @IBAction func ImportImage(_ sender: Any) {
+    @IBAction func ImportImageButtonPressed(_ sender: Any) {
         let image = UIImagePickerController();
         image.delegate = self;
         image.sourceType = UIImagePickerControllerSourceType.photoLibrary;

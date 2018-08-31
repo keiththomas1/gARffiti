@@ -10,6 +10,40 @@ import ARKit
 
 // MARK: - float4x4 extensions
 
+extension ARFrame.WorldMappingStatus: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .notAvailable:
+            return "Not Available"
+        case .limited:
+            return "Limited"
+        case .extending:
+            return "Extending"
+        case .mapped:
+            return "Mapped"
+        }
+    }
+}
+
+extension ARCamera.TrackingState: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .normal:
+            return "Normal"
+        case .notAvailable:
+            return "Not Available"
+        case .limited(.initializing):
+            return "Initializing"
+        case .limited(.excessiveMotion):
+            return "Excessive Motion"
+        case .limited(.insufficientFeatures):
+            return "Insufficient Features"
+        case .limited(.relocalizing):
+            return "Relocalizing"
+        }
+    }
+}
+
 extension float4x4 {
     /**
      Treats matrix as a (right-hand column-major convention) transform matrix
@@ -40,6 +74,30 @@ extension float4x4 {
         columns.0.x = scale
         columns.1.y = scale
         columns.2.z = scale
+    }
+}
+
+extension ARWorldMap {
+    var snapshotAnchor: SnapshotAnchor? {
+        return anchors.compactMap { $0 as? SnapshotAnchor }.first
+    }
+}
+
+extension CGImagePropertyOrientation {
+    /// Preferred image presentation orientation respecting the native sensor orientation of iOS device camera.
+    init(cameraOrientation: UIDeviceOrientation) {
+        switch cameraOrientation {
+        case .portrait:
+            self = .right
+        case .portraitUpsideDown:
+            self = .left
+        case .landscapeLeft:
+            self = .up
+        case .landscapeRight:
+            self = .down
+        default:
+            self = .right
+        }
     }
 }
 

@@ -25,9 +25,162 @@ class ViewController: UIViewController {
     var focusSquare = FocusSquare()
     
     var uploadedImageNodes = [SCNNode]();
+    var uploadedImage:UIImage = UIImage();
+    var lastWorldTransform:simd_float4x4 = simd_float4x4();
     var imageInFocus:Bool = false;
     
+    var imageDictionary: ImageDictionary = ImageDictionary();
+    var imageDictionaryLoaded:Bool = false;
+    
+    @IBOutlet weak var SavedPreviewWindow: UIImageView!;
     /// The view controller that displays the status and "restart experience" UI.
+    @IBOutlet weak var SaveExperienceButton: UIButton!;
+    
+    @IBOutlet weak var LoadExperienceButton: UIButton!;
+    
+    @IBOutlet weak var StatusLabel: UILabel!
+    
+    // MARK: - Persistence: Saving and Loading
+    lazy var mapSaveURL: URL = {
+        do {
+            return try FileManager.default
+                .url(for: .documentDirectory,
+                     in: .userDomainMask,
+                     appropriateFor: nil,
+                     create: true)
+                .appendingPathComponent("map.arexperience")
+        } catch {
+            fatalError("Can't get file map save URL: \(error.localizedDescription)")
+        }
+    }()
+    lazy var imageSaveURL: URL = {
+        do {
+            return try FileManager.default
+                .url(for: .documentDirectory,
+                     in: .userDomainMask,
+                     appropriateFor: nil,
+                     create: true)
+                .appendingPathComponent("imageDictionary.arexperience")
+        } catch {
+            fatalError("Can't get file image save URL: \(error.localizedDescription)")
+        }
+    }()
+    // Called opportunistically to verify that map data can be loaded from filesystem.
+    var mapDataFromFile: Data? {
+        return try? Data(contentsOf: mapSaveURL)
+    }
+    var imageDataFromFile: Data? {
+        return try? Data(contentsOf: imageSaveURL)
+    }
+    var defaultConfiguration: ARWorldTrackingConfiguration {
+        let configuration = ARWorldTrackingConfiguration()
+        configuration.planeDetection = .horizontal
+        configuration.environmentTexturing = .automatic
+        return configuration
+    }
+    var isRelocalizingMap = false;
+    var virtualObjectAnchor: ARAnchor?;
+    
+    /// - Tag: GetWorldMap
+    @IBAction func SaveExperiencePressed(_ button: UIButton) {
+        self.sceneView.session.getCurrentWorldMap { worldMap, error in
+            guard let map = worldMap
+                else {
+                    //self.showAlert(title: "Can't get current world map", message: error!.localizedDescription);
+                    return;
+                }
+            
+            // Add a snapshot image indicating where the map was captured.
+            guard let snapshotAnchor = SnapshotAnchor(capturing: self.sceneView)
+                else { fatalError("Can't take snapshot"); }
+            map.anchors.append(snapshotAnchor);
+            
+            do {
+                let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true);
+                try data.write(to: self.mapSaveURL, options: [.atomic]);
+                DispatchQueue.main.async {
+                    self.LoadExperienceButton.isHidden = false;
+                    self.LoadExperienceButton.isEnabled = true;
+                }
+            } catch {
+                fatalError("Can't save map: \(error.localizedDescription)");
+            }
+        }
+    }
+    
+    func LoadSavedImage(imageName:String) -> UIImage {
+        if (!self.imageDictionaryLoaded) {
+            self.LoadImageDictionary();
+        }
+        
+        guard let savedImage = self.imageDictionary.images[imageName] else
+            { return UIImage(); }
+        
+        return savedImage;
+    }
+    
+    func LoadImageDictionary() {
+        guard let data = imageDataFromFile
+            else { fatalError("Image data should already be verified to exist before the image dictionary is loaded.") }
+        do {
+            guard let imageDictionary = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [ImageDictionary.self], from: data) as! ImageDictionary?
+                else { fatalError("No UIImage in archive.") }
+            self.imageDictionary = imageDictionary;
+            self.imageDictionaryLoaded = true;
+        } catch {
+            fatalError("Can't unarchive ImageDictionary from file data: \(error)")
+        }
+    }
+    
+    func getRandomHash(hashLength: Int) -> String {
+        
+        let alphabet : NSString = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let alphabetLength = UInt32(alphabet.length);
+        
+        var randomString = "";
+        
+        for _ in 0 ..< hashLength {
+            let rand = arc4random_uniform(alphabetLength);
+            var nextChar = alphabet.character(at: Int(rand));
+            randomString += NSString(characters: &nextChar, length: 1) as String;
+        }
+        
+        return randomString;
+    }
+    
+    /// - Tag: RunWithWorldMap
+    @IBAction func LoadExperiencePressed(_ sender: Any) {
+        /// - Tag: ReadWorldMap
+        let worldMap: ARWorldMap = {
+            guard let data = mapDataFromFile
+                else { fatalError("Map data should already be verified to exist before Load button is enabled.") }
+            do {
+                guard let worldMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data)
+                    else { fatalError("No ARWorldMap in archive.") }
+                return worldMap;
+            } catch {
+                fatalError("Can't unarchive ARWorldMap from file data: \(error)")
+            }
+        }()
+        
+        // Display the snapshot image stored in the world map to aid user in relocalizing.
+        if let snapshotData = worldMap.snapshotAnchor?.imageData,
+            let snapshot = UIImage(data: snapshotData) {
+            self.SavedPreviewWindow.image = snapshot;
+        } else {
+            print("No snapshot image in world map");
+        }
+        // Remove the snapshot anchor from the world map since we do not need it in the scene.
+        worldMap.anchors.removeAll(where: { $0 is SnapshotAnchor });
+        
+        let configuration = self.defaultConfiguration; // this app's standard world tracking settings
+        configuration.initialWorldMap = worldMap;
+        sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors]);
+        
+        isRelocalizingMap = true;
+        virtualObjectAnchor = nil;
+    }
+    
     lazy var statusViewController: StatusViewController = {
         return childViewControllers.lazy.compactMap({ $0 as? StatusViewController }).first!
     }()
@@ -63,19 +216,23 @@ class ViewController: UIViewController {
     
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         // Enable Save button only when the mapping status is good and an object has been placed
-        /*switch frame.worldMappingStatus {
+        switch frame.worldMappingStatus {
             case .extending, .mapped:
-                saveExperienceButton.isEnabled =
-                    virtualObjectAnchor != nil && frame.anchors.contains(virtualObjectAnchor!)
+                let enableSave = self.uploadedImageNodes.count > 0 && !self.imageInFocus;
+                if (enableSave) {
+                    self.SaveExperienceButton.isEnabled = true;
+                } else {
+                    self.SaveExperienceButton.isEnabled = false;
+                }
             default:
-                saveExperienceButton.isEnabled = false
+                self.SaveExperienceButton.isEnabled = false
         }
-        statusLabel.text = """
+        self.StatusLabel.text = """
         Mapping: \(frame.worldMappingStatus.description)
         Tracking: \(frame.camera.trackingState.description)
-        """
-        updateSessionInfoLabel(for: frame, trackingState: frame.camera.trackingState)
-        */
+        """;
+        //updateSessionInfoLabel(for: frame, trackingState: frame.camera.trackingState)
+        
     }
     
     // MARK: - View Controller Life Cycle
@@ -104,16 +261,22 @@ class ViewController: UIViewController {
         
         statusViewController.imageUploadedHandler = {
             [unowned self] (image:UIImage) -> Void in
-            self.addImageCursor(image:image);
+            self.addUploadedImage(image:image);
+            self.imageInFocus = true;
         }
         
-        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(showVirtualObjectSelectionViewController))
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleScreenTapped))
         // Set the delegate to ensure this gesture is only used when there are no virtual objects in the scene.
         tapGesture.delegate = self
-        sceneView.addGestureRecognizer(tapGesture)
+        self.sceneView.addGestureRecognizer(tapGesture)
+        
+        // Read in any already saved map to see if we can load one.
+        if self.mapDataFromFile != nil {
+            self.LoadExperienceButton.isHidden = false;
+        }
     }
     
-    func addImageCursor(image:UIImage) {
+    func addUploadedImage(image:UIImage) {
         let plane = SCNPlane(width: 0.1, height: 0.1);
         
         let material = SCNMaterial();
@@ -124,10 +287,9 @@ class ViewController: UIViewController {
         let uploadedImageNode = SCNNode(geometry:plane);
         uploadedImageNode.eulerAngles.x = 3 * .pi / 2
         self.focusSquare.addChildNode(uploadedImageNode);
-        self.imageInFocus = true;
         
+        self.uploadedImage = image;
         self.uploadedImageNodes.append(uploadedImageNode);
-        //self.sceneView.scene.rootNode.addChildNode(self.uploadedImageNode);
     }
 
     override func viewDidAppear(_ animated: Bool) {
