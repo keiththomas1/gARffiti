@@ -116,7 +116,7 @@ class VirtualObjectARView: ARSCNView {
         
         // Add directional lighting for dynamic highlights in addition to environment-based lighting.
         guard let lightingScene = SCNScene(named: "lighting.scn", inDirectory: "Models.scnassets", options: nil) else {
-            print("Error setting up directional lights: Could not find lighting scene in resources.")
+            print("Info: Error setting up directional lights: Could not find lighting scene in resources.")
             return
         }
         

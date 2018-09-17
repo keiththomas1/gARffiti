@@ -32,8 +32,7 @@ class StatusViewController: UIViewController,
             .focusSquare
         ]
     }
-
-    
+    @IBOutlet weak var InsertImageUrlTextField: UITextField!
     @IBOutlet weak private var messagePanel: UIVisualEffectView!
     
     @IBOutlet weak private var messageLabel: UILabel!
@@ -45,6 +44,8 @@ class StatusViewController: UIViewController,
     
     var imageUploadedHandler: (UIImage) -> Void = {image in}
     
+    var urlEnteredHandler: (String) -> Void = {url in}
+    
     /// Seconds before the timer message should fade out. Adjust if the app needs longer transient messages.
     private let displayDuration: TimeInterval = 6
     
@@ -52,6 +53,23 @@ class StatusViewController: UIViewController,
     private var messageHideTimer: Timer?
     
     private var timers: [MessageType: Timer] = [:]
+    
+    
+    
+    @IBAction func InsertButtonPressed(_ sender: Any) {
+        self.handleUrlEntered();
+    }
+    
+    @IBAction func UrlSubmitted(_ sender: Any)
+    {
+        self.handleUrlEntered();
+    }
+    
+    func handleUrlEntered() {
+        guard let text = self.InsertImageUrlTextField.text else { return; }
+        
+        self.urlEnteredHandler(text);
+    }
     
     @IBAction func ImportImageButtonPressed(_ sender: Any) {
         let image = UIImagePickerController();

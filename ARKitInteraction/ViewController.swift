@@ -8,6 +8,7 @@ Main view controller for the AR experience.
 import ARKit
 import SceneKit
 import UIKit
+import Alamofire
 
 class ViewController: UIViewController {
     
@@ -24,13 +25,16 @@ class ViewController: UIViewController {
     
     var focusSquare = FocusSquare()
     
-    var uploadedImageNodes = [SCNNode]();
-    var uploadedImage:UIImage = UIImage();
+    var uploadedImageNode = SCNNode();
+    //var uploadedImage = UIImage();
+    var hasUploadedImage:Bool = false;
+    var uploadedImageURL:String = "";
+    
     var lastWorldTransform:simd_float4x4 = simd_float4x4();
     var imageInFocus:Bool = false;
     
-    var imageDictionary: ImageDictionary = ImageDictionary();
-    var imageDictionaryLoaded:Bool = false;
+    // var imageDictionary: [String:Data] = [String:Data](); // ImageDictionary = ImageDictionary();
+    //var imageDictionaryLoaded:Bool = false;
     
     @IBOutlet weak var SavedPreviewWindow: UIImageView!;
     /// The view controller that displays the status and "restart experience" UI.
@@ -108,44 +112,35 @@ class ViewController: UIViewController {
         }
     }
     
-    func LoadSavedImage(imageName:String) -> UIImage {
-        if (!self.imageDictionaryLoaded) {
-            self.LoadImageDictionary();
+    func downloadImage(
+        url: String,
+        parentNode: SCNNode,
+        completion: @escaping(SCNNode?) -> ())
+    {
+        print("Info: Download Started")
+        getData(from: url) { data, response, error in
+            guard let data = data, error == nil else {
+                print("Info: " + error.debugDescription);
+                return;
+            }
+            print("Info: Download Finished");
+            DispatchQueue.main.async() {
+                guard let image = UIImage(data: data) else {
+                    return;
+                }
+                self.SavedPreviewWindow.image = image;
+                let imageNode = self.createImageNode(image: image, parentNode: parentNode);
+                completion(imageNode);
+            }
         }
-        
-        guard let savedImage = self.imageDictionary.images[imageName] else
-            { return UIImage(); }
-        
-        return savedImage;
     }
-    
-    func LoadImageDictionary() {
-        guard let data = imageDataFromFile
-            else { fatalError("Image data should already be verified to exist before the image dictionary is loaded.") }
-        do {
-            guard let imageDictionary = try NSKeyedUnarchiver.unarchivedObject(ofClasses: [ImageDictionary.self], from: data) as! ImageDictionary?
-                else { fatalError("No UIImage in archive.") }
-            self.imageDictionary = imageDictionary;
-            self.imageDictionaryLoaded = true;
-        } catch {
-            fatalError("Can't unarchive ImageDictionary from file data: \(error)")
+    func getData(
+        from url: String,
+        completion: @escaping (Data?, HTTPURLResponse?, Error?) -> ()) {
+        Alamofire.request(url).response {
+            response in
+            completion(response.data, response.response, response.error);
         }
-    }
-    
-    func getRandomHash(hashLength: Int) -> String {
-        
-        let alphabet : NSString = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        let alphabetLength = UInt32(alphabet.length);
-        
-        var randomString = "";
-        
-        for _ in 0 ..< hashLength {
-            let rand = arc4random_uniform(alphabetLength);
-            var nextChar = alphabet.character(at: Int(rand));
-            randomString += NSString(characters: &nextChar, length: 1) as String;
-        }
-        
-        return randomString;
     }
     
     /// - Tag: RunWithWorldMap
@@ -168,7 +163,7 @@ class ViewController: UIViewController {
             let snapshot = UIImage(data: snapshotData) {
             self.SavedPreviewWindow.image = snapshot;
         } else {
-            print("No snapshot image in world map");
+            print("Info: No snapshot image in world map");
         }
         // Remove the snapshot anchor from the world map since we do not need it in the scene.
         worldMap.anchors.removeAll(where: { $0 is SnapshotAnchor });
@@ -218,7 +213,7 @@ class ViewController: UIViewController {
         // Enable Save button only when the mapping status is good and an object has been placed
         switch frame.worldMappingStatus {
             case .extending, .mapped:
-                let enableSave = self.uploadedImageNodes.count > 0 && !self.imageInFocus;
+                let enableSave = self.hasUploadedImage && !self.imageInFocus;
                 if (enableSave) {
                     self.SaveExperienceButton.isEnabled = true;
                 } else {
@@ -259,10 +254,26 @@ class ViewController: UIViewController {
             self.restartExperience();
         }
         
-        statusViewController.imageUploadedHandler = {
-            [unowned self] (image:UIImage) -> Void in
-            self.addUploadedImage(image:image);
-            self.imageInFocus = true;
+        statusViewController.urlEnteredHandler = {
+            [unowned self] (url:String) -> Void in
+            guard let downloadURL = URL(string: url) else {
+                // TODO: Show this to the user
+                print("Info: URL is malformatted");
+                return;
+            }
+            
+            let focusSquareNode = self.focusSquare as SCNNode;
+            for child in focusSquareNode.childNodes {
+                child.removeFromParentNode();
+            }
+            self.downloadImage(url: url, parentNode: focusSquareNode, completion:
+            { imageNode in
+                guard let finalNode = imageNode else {return;}
+                self.uploadedImageNode = finalNode;
+                self.hasUploadedImage = true;
+                self.imageInFocus = true;
+                self.uploadedImageURL = url;
+            });
         }
         
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleScreenTapped))
@@ -276,7 +287,7 @@ class ViewController: UIViewController {
         }
     }
     
-    func addUploadedImage(image:UIImage) {
+    func createImageNode(image:UIImage, parentNode:SCNNode) -> SCNNode {
         let plane = SCNPlane(width: 0.1, height: 0.1);
         
         let material = SCNMaterial();
@@ -286,10 +297,11 @@ class ViewController: UIViewController {
         
         let uploadedImageNode = SCNNode(geometry:plane);
         uploadedImageNode.eulerAngles.x = 3 * .pi / 2
-        self.focusSquare.addChildNode(uploadedImageNode);
         
-        self.uploadedImage = image;
-        self.uploadedImageNodes.append(uploadedImageNode);
+        parentNode.addChildNode(uploadedImageNode);
+        uploadedImageNode.simdWorldOrientation = simd_quatf();
+        
+        return uploadedImageNode;
     }
 
     override func viewDidAppear(_ animated: Bool) {

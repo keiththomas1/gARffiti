@@ -25,6 +25,22 @@ extension ARFrame.WorldMappingStatus: CustomStringConvertible {
     }
 }
 
+func getRandomHash(hashLength: Int) -> String {
+    
+    let alphabet : NSString = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let alphabetLength = UInt32(alphabet.length);
+    
+    var randomString = "";
+    
+    for _ in 0 ..< hashLength {
+        let rand = arc4random_uniform(alphabetLength);
+        var nextChar = alphabet.character(at: Int(rand));
+        randomString += NSString(characters: &nextChar, length: 1) as String;
+    }
+    
+    return randomString;
+}
+
 extension ARCamera.TrackingState: CustomStringConvertible {
     public var description: String {
         switch self {

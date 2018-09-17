@@ -56,12 +56,7 @@ extension ViewController: ARSCNViewDelegate, ARSessionDelegate {
         } else if let imageAnchor = anchor as? GraffitiImageAnchor {
             // TODO: Load image based on image hash
             
-            let image = self.LoadSavedImage(imageName: "TestImage");
-            self.addUploadedImage(image: image);
-            guard let newImageNode = self.uploadedImageNodes.last else { return; }
-            
-            node.addChildNode(newImageNode);
-            newImageNode.simdWorldOrientation = simd_quatf();
+            self.downloadImage(url: imageAnchor.imageURL, parentNode: node, completion: {_ in });
         }
     }
     

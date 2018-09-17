@@ -10,21 +10,21 @@ import ARKit
 /// - Tag: ImageArAnchor
 class GraffitiImageAnchor: ARAnchor {
     
-    let imageHash: String;
+    let imageURL: String;
     var rotation: simd_quatf = simd_quatf();
     
     /*convenience init?(transform: float4x4, imageHash: String) {
         self.init(transform: transform, imageHash: imageHash);
     }*/
     
-    init(transform: float4x4, imageHash: String) {
-        self.imageHash = imageHash;
+    init(transform: float4x4, imageURL: String) {
+        self.imageURL = imageURL;
         self.rotation = transform.orientation;
         super.init(transform: transform);
     }
     
     required init(anchor: ARAnchor) {
-        self.imageHash = (anchor as! GraffitiImageAnchor).imageHash
+        self.imageURL = (anchor as! GraffitiImageAnchor).imageURL
 
         super.init(anchor: anchor);
     }
@@ -34,8 +34,8 @@ class GraffitiImageAnchor: ARAnchor {
     }
     
     required init?(coder aDecoder: NSCoder) {
-        if let imageHash = aDecoder.decodeObject(forKey: "imageAR") as? String {
-            self.imageHash = imageHash
+        if let imageURL = aDecoder.decodeObject(forKey: "imageAR") as? String {
+            self.imageURL = imageURL
         } else {
             return nil
         }
@@ -45,7 +45,7 @@ class GraffitiImageAnchor: ARAnchor {
     
     override func encode(with aCoder: NSCoder) {
         super.encode(with: aCoder)
-        aCoder.encode(imageHash, forKey: "imageAR")
+        aCoder.encode(imageURL, forKey: "imageAR")
     }
     
 }

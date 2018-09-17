@@ -23,29 +23,15 @@ extension ViewController: UIGestureRecognizerDelegate {
             // TODO: Ensure that the cursor is on a surface, or else it will
             //      be possible to place something anywhere in the world.
             
-            guard let currentUploadedImage = self.uploadedImageNodes.last else {
+            if (!self.hasUploadedImage) {
                 return;
             }
-            self.lastWorldTransform = currentUploadedImage.simdWorldTransform;
             
-            let imageHash = self.getRandomHash(hashLength: 15);
-            
-            do {
-                if (!self.imageDictionaryLoaded) {
-                    self.LoadImageDictionary();
-                }
-                self.imageDictionary.images[imageHash] = self.uploadedImage;
-                let imageData = try NSKeyedArchiver.archivedData(withRootObject: self.imageDictionary, requiringSecureCoding: true);
-                try imageData.write(to: self.imageSaveURL, options: [.atomic]);
-            }
-            catch {
-                fatalError("Can't save image: \(error.localizedDescription)");
-            }
             // Create a new anchor with the object's current transform and add it to the session
-            let newAnchor = GraffitiImageAnchor(transform: currentUploadedImage.simdWorldTransform, imageHash: imageHash);
+            let newAnchor = GraffitiImageAnchor(transform: uploadedImageNode.simdWorldTransform, imageURL: uploadedImageURL);
             self.sceneView.addImageAnchor(anchor: newAnchor);
             
-            currentUploadedImage.removeFromParentNode();
+            uploadedImageNode.removeFromParentNode();
             self.imageInFocus = false;
         }
         /*else {
