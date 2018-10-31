@@ -30,9 +30,10 @@ extension ViewController: ARSCNViewDelegate, ARSessionDelegate {
         
         // If light estimation is enabled, update the intensity of the directional lights
         if let lightEstimate = session.currentFrame?.lightEstimate {
-            sceneView.updateDirectionalLighting(intensity: lightEstimate.ambientIntensity, queue: updateQueue)
+            self.ambientLight.intensity = lightEstimate.ambientIntensity;
         } else {
-            sceneView.updateDirectionalLighting(intensity: 1000, queue: updateQueue)
+            self.ambientLight.intensity = 1000;
+            // sceneView.updateDirectionalLighting(intensity: 1000, queue: updateQueue)
         }
     }
     
@@ -56,7 +57,7 @@ extension ViewController: ARSCNViewDelegate, ARSessionDelegate {
         } else if let imageAnchor = anchor as? GraffitiImageAnchor {
             // TODO: Load image based on image hash
             
-            self.downloadImage(url: imageAnchor.imageURL, parentNode: node, completion: {_ in });
+            self.downloadImage(url: imageAnchor.imageURL, parentNode: node, completion: { imageNode in });
         }
     }
     
@@ -64,12 +65,12 @@ extension ViewController: ARSCNViewDelegate, ARSessionDelegate {
         updateQueue.async {
             if let planeAnchor = anchor as? ARPlaneAnchor {
                 for object in self.virtualObjectLoader.loadedObjects {
-                    object.adjustOntoPlaneAnchor(planeAnchor, using: node)
+                    object.adjustOntoPlaneAnchor(planeAnchor, using: node);
                 }
             } else {
                 if let objectAtAnchor = self.virtualObjectLoader.loadedObjects.first(where: { $0.anchor == anchor }) {
-                    objectAtAnchor.simdPosition = anchor.transform.translation
-                    objectAtAnchor.anchor = anchor
+                    objectAtAnchor.simdPosition = anchor.transform.translation;
+                    objectAtAnchor.anchor = anchor;
                 }
             }
         }

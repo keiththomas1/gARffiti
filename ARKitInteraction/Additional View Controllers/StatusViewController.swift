@@ -32,7 +32,7 @@ class StatusViewController: UIViewController,
             .focusSquare
         ]
     }
-    @IBOutlet weak var InsertImageUrlTextField: UITextField!
+    @IBOutlet weak var UploadImageUrlTextField: UITextField!
     @IBOutlet weak private var messagePanel: UIVisualEffectView!
     
     @IBOutlet weak private var messageLabel: UILabel!
@@ -56,6 +56,9 @@ class StatusViewController: UIViewController,
     
     
     
+    @IBAction func UploadButtonPressed(_ sender: Any) {
+        self.handleUrlEntered();
+    }
     @IBAction func InsertButtonPressed(_ sender: Any) {
         self.handleUrlEntered();
     }
@@ -66,7 +69,7 @@ class StatusViewController: UIViewController,
     }
     
     func handleUrlEntered() {
-        guard let text = self.InsertImageUrlTextField.text else { return; }
+        guard let text = self.UploadImageUrlTextField.text else { return; }
         
         self.urlEnteredHandler(text);
     }

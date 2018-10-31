@@ -15,6 +15,7 @@ class ViewController: UIViewController {
     // MARK: IBOutlets
     
     @IBOutlet var sceneView: VirtualObjectARView!
+    var ambientLight: SCNLight = SCNLight();
     
     @IBOutlet weak var addObjectButton: UIButton!
     
@@ -80,6 +81,7 @@ class ViewController: UIViewController {
         let configuration = ARWorldTrackingConfiguration()
         configuration.planeDetection = .horizontal
         configuration.environmentTexturing = .automatic
+        configuration.isLightEstimationEnabled = true
         return configuration
     }
     var isRelocalizingMap = false;
@@ -90,7 +92,7 @@ class ViewController: UIViewController {
         self.sceneView.session.getCurrentWorldMap { worldMap, error in
             guard let map = worldMap
                 else {
-                    //self.showAlert(title: "Can't get current world map", message: error!.localizedDescription);
+                    print("Can't get current world map");
                     return;
                 }
             
@@ -100,12 +102,27 @@ class ViewController: UIViewController {
             map.anchors.append(snapshotAnchor);
             
             do {
-                let data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true);
-                try data.write(to: self.mapSaveURL, options: [.atomic]);
+                let worldMapData:Data = try NSKeyedArchiver.archivedData(withRootObject: map, requiringSecureCoding: true);
+                try worldMapData.write(to: self.mapSaveURL, options: [.atomic]);
                 DispatchQueue.main.async {
                     self.LoadExperienceButton.isHidden = false;
                     self.LoadExperienceButton.isEnabled = true;
                 }
+                print("Saving experience");
+                
+                var parameters: [String: Any] = [
+                    "latitude" : "34.2324",
+                    "longitude" : "35.3299",
+                    "contributors": "1"
+                ];
+                // Pack world map data into a string
+                let mapDataString = String(decoding: worldMapData, as: UTF8.self);
+                parameters["worldMap"] = mapDataString;
+                // Pack image data into a string
+                let imageDataString = String(decoding: snapshotAnchor.imageData, as: UTF8.self);
+                parameters["photo"] = imageDataString;
+                
+                self.postWorldData(worldData: parameters);
             } catch {
                 fatalError("Can't save map: \(error.localizedDescription)");
             }
@@ -134,12 +151,23 @@ class ViewController: UIViewController {
             }
         }
     }
+    
     func getData(
         from url: String,
         completion: @escaping (Data?, HTTPURLResponse?, Error?) -> ()) {
         Alamofire.request(url).response {
             response in
             completion(response.data, response.response, response.error);
+        }
+    }
+    
+    func postWorldData(worldData:[String: Any]) {
+        Alamofire.request("http://argraffiti-env.3wnietcvxd.us-east-2.elasticbeanstalk.com/locations",
+                          method: .post, // .POST,
+                          parameters: worldData,
+                          encoding: URLEncoding.default) // JSONEncoding.default)
+            .responseString { response in
+                print("Got a response from POST request.");
         }
     }
     
@@ -231,6 +259,15 @@ class ViewController: UIViewController {
     }
     
     // MARK: - View Controller Life Cycle
+    func insertAmbientLight() {
+        self.ambientLight = SCNLight();
+        ambientLight.type = SCNLight.LightType.ambient;
+        
+        let spotNode = SCNNode();
+        spotNode.light = ambientLight;
+        
+        self.sceneView.scene.rootNode.addChildNode(spotNode);
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -247,7 +284,9 @@ class ViewController: UIViewController {
             ARSCNDebugOptions.showWorldOrigin,
             ARSCNDebugOptions.showFeaturePoints];
         
-        sceneView.setupDirectionalLighting(queue: updateQueue)
+        self.insertAmbientLight();
+        sceneView.autoenablesDefaultLighting = false;
+        // sceneView.setupDirectionalLighting(queue: updateQueue)
 
         // Hook up status view controller callback(s).
         statusViewController.restartExperienceHandler = { [unowned self] in
@@ -266,12 +305,16 @@ class ViewController: UIViewController {
             for child in focusSquareNode.childNodes {
                 child.removeFromParentNode();
             }
-            self.downloadImage(url: url, parentNode: focusSquareNode, completion:
-            { imageNode in
+            
+            self.downloadImage(
+                url: url, parentNode: focusSquareNode, completion:
+                { imageNode in
                 guard let finalNode = imageNode else {return;}
-                self.uploadedImageNode = finalNode;
+                // finalNode.simdWorldOrientation = simd_quatf();
+                finalNode.eulerAngles.x = -.pi/2;
                 self.hasUploadedImage = true;
                 self.imageInFocus = true;
+                self.uploadedImageNode = finalNode;
                 self.uploadedImageURL = url;
             });
         }

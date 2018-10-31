@@ -10,4 +10,5 @@ target 'ARKitInteraction' do
 
   # Pods for ARKitInteraction
   pod 'Alamofire', '~> 4.7'
+  pod 'SwiftLocation', '~> 3.2.3'
 end
