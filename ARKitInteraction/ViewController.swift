@@ -86,6 +86,7 @@ class ViewController: UIViewController {
     }
     var isRelocalizingMap = false;
     var virtualObjectAnchor: ARAnchor?;
+    var loadedFromServer = false;
     
     /// - Tag: GetWorldMap
     @IBAction func SaveExperiencePressed(_ button: UIButton) {
@@ -111,8 +112,8 @@ class ViewController: UIViewController {
                 print("Saving experience");
                 
                 var parameters: [String: Any] = [
-                    "latitude" : "34.2324",
-                    "longitude" : "35.3299",
+                    "latitude" : "24.2324",
+                    "longitude" : "25.3299",
                     "contributors": "1"
                 ];
                 // Pack world map data into a string
@@ -171,20 +172,45 @@ class ViewController: UIViewController {
         }
     }
     
+    func getWorldData(latitude: String, longitude: String) -> ARWorldMap {
+        let url = "http://argraffiti-env.3wnietcvxd.us-east-2.elasticbeanstalk.com/locations/" + latitude + "/" + longitude;
+        let worldMap: ARWorldMap;
+        Alamofire.request(
+            url,
+            method: .get, // .POST,
+            encoding: URLEncoding.default) // JSONEncoding.default)
+            .responseJSON { response in
+                print("Got a response from POST request.");
+                print(response);
+        }
+        
+        
+        return worldMap;
+    }
+    
     /// - Tag: RunWithWorldMap
     @IBAction func LoadExperiencePressed(_ sender: Any) {
-        /// - Tag: ReadWorldMap
-        let worldMap: ARWorldMap = {
-            guard let data = mapDataFromFile
-                else { fatalError("Map data should already be verified to exist before Load button is enabled.") }
-            do {
-                guard let worldMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data)
-                    else { fatalError("No ARWorldMap in archive.") }
-                return worldMap;
-            } catch {
-                fatalError("Can't unarchive ARWorldMap from file data: \(error)")
+        let worldMap: ARWorldMap;
+        if (!loadedFromServer) {
+            worldMap = getWorldData(latitude: "64.39384", longitude: "34.5847");
+            loadedFromServer = true;
+            
+            if (worldMap == nil) {
+                return;
             }
-        }()
+        } else {
+            worldMap = {
+                guard let data = mapDataFromFile
+                    else { fatalError("Map data should already be verified to exist before Load button is enabled.") }
+                do {
+                    guard let worldMap = try NSKeyedUnarchiver.unarchivedObject(ofClass: ARWorldMap.self, from: data)
+                        else { fatalError("No ARWorldMap in archive.") }
+                    return worldMap;
+                } catch {
+                    fatalError("Can't unarchive ARWorldMap from file data: \(error)")
+                }
+            }()
+        }
         
         // Display the snapshot image stored in the world map to aid user in relocalizing.
         if let snapshotData = worldMap.snapshotAnchor?.imageData,

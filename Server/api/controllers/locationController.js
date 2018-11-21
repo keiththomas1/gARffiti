@@ -5,16 +5,22 @@ let Location = mongoose.model('Locations');
 
 // GET
 exports.getLocation = function(request, response) {
-  /*Location.findById(request.params.pictureId, function(error, location) {
+  Location.find(
+    {latitude: request.params.latitude, longitude: request.params.longitude},
+    function(error, location) {
     if (error) {
-		console.error("getLocation error: ", error);
-		response.send(error);
-	}
-	console.log("getLocation request. response:", location);
+  		console.error("getLocation error: ", error);
+  		response.send(error);
+      return;
+	  }
+
+  	console.log("getLocation request. response:", location);
+    console.log("latitude: ", request.params.latitude);
+    console.log("longitude: ", request.params.longitude);
+
     response.json(location);
-  });*/
-  response.json("Sorry, this route is not configured");
-};
+  });
+}
 
 // POST
 exports.createLocation = function(request, response) {
